@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pengecekan CCTV - RS Hermina Solo</title>
+    <style>
+        :root { --primary: #0056b3; --primary-light: #e6f0fa; --success: #198754; --success-light: #d1e7dd; --danger: #dc3545; --danger-light: #f8d7da; --warning: #ffc107; --warning-light: #fff3cd; --dark: #212529; --gray: #6c757d; --bg: #f4f6f9; }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--dark); }
+        .app-header { background-color: var(--primary); color: white; text-align: center; padding: 20px 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .app-header h1 { margin: 0; font-size: 1.4rem; text-transform: uppercase; }
+        .app-header p { margin: 5px 0 0; font-size: 0.9rem; opacity: 0.9; }
+        .status-server { display: inline-block; background-color: #e6f0fa; color: var(--primary); padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; margin-top: 15px; }
+        .container { max-width: 950px; margin: 0 auto; padding: 15px; }
+        .alert-box { background-color: var(--warning-light); border: 2px solid #ffeeba; border-radius: 10px; padding: 15px; margin-bottom: 20px; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .alert-title { color: #856404; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .issue-card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .issue-loc { font-weight: bold; font-size: 1rem; margin-bottom: 5px; }
+        .issue-time { font-size: 0.8rem; color: var(--gray); margin-bottom: 8px; display: inline-flex; align-items: center; gap: 5px; background: #eee; padding: 2px 8px; border-radius: 4px; }
+        .issue-desc { color: var(--danger); font-weight: bold; font-size: 0.95rem; margin-bottom: 5px; }
+        .issue-note { font-size: 0.8rem; color: var(--gray); font-style: italic; }
+        .form-panel { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 200px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: bold; color: var(--gray); margin-bottom: 5px; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; }
+        .building-header { background-color: var(--primary); color: white; padding: 12px 15px; border-radius: 8px; margin: 25px 0 15px 0; font-size: 1.1rem; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+        .nvr-section { background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .nvr-title { margin-top: 0; border-bottom: 2px solid var(--bg); padding-bottom: 8px; font-size: 1rem; color: var(--dark); }
+        
+        /* SUMMARY STAT CARDS */
+        .summary-cards { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .summary-card { flex: 1; min-width: 200px; background: #e6f0fa; border-left: 5px solid var(--primary); padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        .summary-card.total { background: #d1e7dd; border-left-color: var(--success); }
+        .summary-card .card-title { font-size: 0.8rem; color: var(--gray); font-weight: bold; text-transform: uppercase; }
+        .summary-card.total .card-title { color: #0f5132; }
+        .summary-card .card-value { font-size: 1.6rem; font-weight: bold; color: var(--primary); margin-top: 5px; }
+        .summary-card.total .card-value { color: var(--success); }
+
+        /* TOMBOL STATUS NVR BARU */
+        .btn-nvr-status { padding: 6px 12px; border: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .btn-nvr-status.aman { background-color: var(--success-light); color: var(--success); border: 1px solid var(--success); }
+        .btn-nvr-status.rusak { background-color: var(--danger); color: white; animation: pulse 1.5s infinite; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.4); }
+        .btn-nvr-status:hover { opacity: 0.9; }
+
+        .grid-cctv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
+        .cctv-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.2s; cursor: grab; width: 100%; box-sizing: border-box; }
+        .cctv-wrapper:active { cursor: grabbing; }
+        .cctv-wrapper.dragging { opacity: 0.4; }
+        .cctv-wrapper.drag-over { transform: scale(1.05); opacity: 0.8; }
+        .cctv-btn { box-sizing: border-box; background-color: var(--success); color: white; border: none; padding: 12px 8px; border-radius: 10px; font-weight: bold; font-size: 0.85rem; text-align: center; box-shadow: 0 4px 0 #146c43; transition: 0.1s; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 85px; width: 100%; justify-content: center; cursor: pointer; word-break: break-word; }
+        .cctv-wrapper:active .cctv-btn { transform: translateY(4px); box-shadow: none; }
+        .cctv-btn.rusak { background-color: var(--danger); box-shadow: 0 4px 0 #b02a37; animation: pulse 1.5s infinite; }
+        .cctv-btn.kosong { background-color: #f8f9fa; color: var(--gray); border: 2px dashed #adb5bd; box-shadow: none; }
+        .cctv-btn.btn-tambah { background-color: var(--primary-light); color: var(--primary); border: 2px dashed var(--primary); box-shadow: none; }
+        .channel-label { font-size: 0.75rem; font-weight: bold; color: var(--dark); background: #e9ecef; padding: 4px 12px; border-radius: 12px; border: 1px solid #dee2e6; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.85; } 100% { opacity: 1; } }
+        .cctv-btn .icon { font-size: 1.2rem; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { flex: 1; padding: 12px; background: #ddd; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: var(--dark); font-size: 0.9rem; min-width: 120px;}
+        .tab-btn.active { background: var(--primary); color: white; }
+        
+        .log-header-actions { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: flex-end; flex-wrap: wrap; gap: 10px; }
+        .btn-print { padding: 10px 15px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color: white; background-color: var(--danger); }
+        .btn-print-rekap { padding: 10px 15px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color: white; background-color: var(--primary); }
+        .btn-refresh { padding: 10px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color: white; background-color: var(--success); }
+        .history-table { width: 100%; background: white; border-radius: 8px; border-collapse: collapse; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); font-size: 0.85rem; margin-bottom: 20px;}
+        .history-table th, .history-table td { border: 1px solid #ddd; padding: 10px; text-align: center; vertical-align: middle; }
+        .history-table th { background-color: var(--dark); color: white; }
+        .text-left { text-align: left !important; }
+        .text-center { text-align: center !important; }
+        .row-even { background-color: #f9f9f9; }
+        .row-odd { background-color: #ffffff; }
+        .status-aman { color: var(--success); font-weight: bold; font-size: 0.95rem; }
+        .status-kendala { color: var(--danger); font-weight: bold; font-size: 0.95rem; }
+        .status-diperbaiki { color: #d97706; font-weight: bold; font-size: 0.95rem; }
+        .empty-row { color: #aaa; font-style: italic; }
+        .rekap-detail-list { margin: 0; padding-left: 20px; }
+        .rekap-detail-list li { margin-bottom: 4px; color: #333; }
+        .btn-submit-main { width: 100%; padding: 15px; background-color: var(--primary); color: white; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px; margin-bottom: 40px; }
+        .btn-submit-main:disabled { background-color: var(--gray); cursor: not-allowed; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; }
+        .modal-content { background: white; padding: 20px; border-radius: 10px; width: 100%; max-width: 420px; box-sizing: border-box; }
+        .modal-title { font-size: 1.1rem; font-weight: bold; color: var(--primary); margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .modal-actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+        .modal-actions button { flex: 1; padding: 10px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color: white; min-width: 90px; }
+        
+        .kop-laporan { display: none; text-align: center; margin-bottom: 20px; }
+        .kop-laporan h2 { margin: 0; font-size: 1.4rem; text-transform: uppercase; }
+        .kop-laporan hr { border: 0; border-top: 3px solid #000; border-bottom: 1px solid #000; height: 2px; margin: 10px 0; }
+        .kop-laporan h3 { margin: 0; font-size: 1.1rem; text-transform: uppercase; }
+        
+        /* CSS RESPONSIVE MOBILE */
+        @media screen and (max-width: 768px) {
+            .grid-cctv { grid-template-columns: repeat(2, 1fr); }
+            .form-row { flex-direction: column; gap: 10px; }
+            .log-header-actions { flex-direction: column; align-items: stretch; }
+            .btn-print, .btn-print-rekap, .btn-refresh { width: 100%; }
+            .action-buttons-wrap { display: flex; gap: 10px; width: 100%; }
+        }
+        
+        @media screen and (max-width: 480px) {
+            .grid-cctv { grid-template-columns: 1fr; }
+            .app-header h1 { font-size: 1.2rem; }
+        }
+
+        /* PRINT STYLES */
+        @media print { 
+            .app-header, .tabs, .alert-box, .no-print, .btn-submit-main { display: none !important; } 
+            .kop-laporan { display: block !important; } 
+            body { background: white; font-size: 12pt; } 
+            .container { padding: 0; margin: 0; max-width: 100%; box-shadow: none; } 
+            .nvr-section { box-shadow: none; border: none; padding: 0; } 
+            .history-table th { background-color: #eee !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
+            tr { page-break-inside: avoid; } 
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-header no-print">
+        <h1>Sistem Pengecekan CCTV</h1>
+        <p>Tim Security - RS Hermina Solo</p>
+        <div class="status-server" id="status-koneksi">🔄 Sinkronisasi Server...</div>
+    </div>
+
+    <div class="container">
+        <div class="alert-box no-print" id="alert-box">
+            <div class="alert-title">⚠️ CATATAN: Terdapat Kendala Belum Tuntas</div>
+            <div id="issue-list-container"></div>
+        </div>
+
+        <div class="tabs no-print">
+            <button class="tab-btn active" id="btn-tab-pengecekan" onclick="switchTab('pengecekan')">Form Pengecekan</button>
+            <button class="tab-btn" id="btn-tab-rekap" onclick="switchTab('rekap')">Data Inventaris CCTV</button>
+            <button class="tab-btn" id="btn-tab-riwayat" onclick="switchTab('riwayat')">Riwayat Sebulan</button>
+        </div>
+
+        <!-- TAB 1: FORM PENGECEKAN -->
+        <div id="tab-pengecekan">
+            <div class="form-panel">
+                <div class="form-row">
+                    <div class="form-group"><label>Tanggal</label><input type="date" id="input-tanggal"></div>
+                    <div class="form-group"><label>Jam</label><input type="time" id="input-jam"></div>
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Shift</label>
+                    <select id="input-shift">
+                        <option value="Pagi">Pagi (07.00 - 19.00)</option>
+                        <option value="Malam">Malam (19.00 - 07.00)</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Nama Petugas</label><input type="text" id="input-petugas" placeholder="Masukkan nama petugas..."></div>
+            </div>
+
+            <!-- PANEL PARAMETER WAJIB -->
+            <div class="form-panel no-print" style="background-color: var(--primary-light); border-left: 5px solid var(--primary); margin-bottom: 20px;">
+                <h3 style="margin-top: 0; color: var(--primary); font-size: 1.05rem; margin-bottom: 15px;">📝 Parameter Pengecekan Utama</h3>
+                
+                <div class="form-row" style="flex-wrap: wrap;">
+                    <div class="form-group" style="min-width: 200px;">
+                        <label>1. Kondisi Fisik CCTV & NVR</label>
+                        <select id="param-fisik" class="param-cek">
+                            <option value="Baik / Normal">✅ Baik / Normal</option>
+                            <option value="Ada Kendala">⚠️ Ada Kendala</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="min-width: 200px;">
+                        <label>2. Kualitas Gambar</label>
+                        <select id="param-gambar" class="param-cek">
+                            <option value="Baik & Jelas">✅ Baik & Jelas</option>
+                            <option value="Ada Kendala">⚠️ Ada Kendala (Blur/Gelap)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="min-width: 200px;">
+                        <label>3. Penyimpanan (HDD/Rekaman)</label>
+                        <select id="param-penyimpanan" class="param-cek">
+                            <option value="Merekam Normal">✅ Merekam Normal</option>
+                            <option value="Tidak Merekam / Error">⚠️ Tidak Merekam / Error</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="catatan-parameter" style="display: none; margin-top: 15px;">
+                    <label style="color: var(--danger);">Keterangan Kendala Parameter Utama:</label>
+                    <input type="text" id="input-catatan-param" placeholder="Contoh: HDD NVR 1B error, tidak mau merekam...">
+                </div>
+            </div>
+
+            <div id="cctv-grid-container"></div>
+
+            <button class="btn-submit-main no-print" onclick="submitLaporanShift(false)">✔️ Simpan & Rekap Laporan Shift</button>
+        </div>
+
+        <!-- TAB 2: REKAP DETAIL INVENTARIS CCTV -->
+        <div id="tab-rekap" style="display: none;">
+            <div class="nvr-section">
+                <div class="kop-laporan"><h2>RS HERMINA SOLO</h2><hr><h3>Rincian Data Inventaris CCTV Berdasarkan NVR</h3></div>
+                
+                <div class="summary-cards no-print">
+                    <div class="summary-card">
+                        <div class="card-title">Total Gedung Lama</div>
+                        <div class="card-value" id="total-gd-lama">0 Unit</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="card-title">Total Gedung Baru</div>
+                        <div class="card-value" id="total-gd-baru">0 Unit</div>
+                    </div>
+                    <div class="summary-card total">
+                        <div class="card-title">Keseluruhan CCTV</div>
+                        <div class="card-value" id="grand-total-cctv">0 Unit</div>
+                    </div>
+                </div>
+
+                <div class="log-header-actions no-print">
+                    <div style="font-weight: bold; color: var(--dark);">Total Data Master CCTV</div>
+                    <button class="btn-print-rekap" onclick="window.print()">🖨 Cetak Data CCTV</button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%;">Nama NVR / DVR</th>
+                                <th style="width: 55%;">Rincian Detail Kamera CCTV</th>
+                                <th style="width: 15%;">Jumlah Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rekap-detail-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: RIWAYAT BULANAN -->
+        <div id="tab-riwayat" style="display: none;">
+            <div class="nvr-section">
+                <div class="kop-laporan"><h2>RS HERMINA SOLO</h2><hr><h3>Laporan Log Pengecekan CCTV - Tim Security</h3><p id="periode-cetak" style="font-weight: bold; margin-top: 5px;">Periode: -</p></div>
+                <div class="log-header-actions no-print">
+                    <div class="form-group" style="width: 100%; max-width: 200px;"><label style="font-size:0.8rem; font-weight:bold;">Pilih Bulan Laporan</label><input type="month" id="filter-bulan"></div>
+                    <div class="action-buttons-wrap">
+                        <button class="btn-refresh" onclick="fetchHistoryFromServer()">🔄 Refresh Data</button>
+                        <button class="btn-print" onclick="window.print()">🖨️ Cetak Riwayat</button>
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="history-table">
+                        <thead><tr><th>Tanggal</th><th>Shift</th><th>Petugas</th><th style="width:250px;">Status Pengecekan</th><th>Rincian Kendala / Keterangan</th></tr></thead>
+                        <tbody id="history-tbody"><tr><td colspan="5">Memuat data dari Google Sheets...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KENDALA & EDIT CCTV -->
+    <div class="modal" id="modal-kendala">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-kendala-title">Pengaturan CCTV</div>
+            
+            <!-- FORM EDIT NAMA -->
+            <div class="form-group" style="margin-bottom: 12px; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef;">
+                <label style="color: var(--primary);">✏️ Edit Nama / Lokasi CCTV:</label>
+                <div style="display: flex; gap: 8px; margin-top: 5px;">
+                    <input type="text" id="modal-cctv-nama-edit" placeholder="Nama CCTV...">
+                    <button style="background: var(--primary); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; padding: 0 12px; white-space: nowrap;" onclick="editNamaCCTV()">Simpan Nama</button>
+                </div>
+            </div>
+
+            <!-- FORM LAPOR KENDALA -->
+            <div class="form-group" style="margin-top: 15px;">
+                <label style="color: var(--dark);">⚠️ Lapor Kendala Kamera:</label>
+                <select id="modal-jenis-kendala" style="margin-top: 5px;">
+                    <option value="Kamera Rusak / Mati">Kamera Rusak / Mati</option>
+                    <option value="Gambar Blur / Berbayang">Gambar Blur / Berbayang</option>
+                    <option value="Kabel Putus / Kendor">Kabel Putus / Kendor</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 10px;">
+                <label>Keterangan Tambahan Kendala:</label>
+                <input type="text" id="modal-ket-kendala" placeholder="Contoh: Titik tertentu mati">
+            </div>
+
+            <div class="modal-actions">
+                <button style="background: var(--gray);" onclick="closeModal('modal-kendala')">Batal</button>
+                <button style="background: #6c757d; color: white;" onclick="hapusCCTV()">🗑️ Hapus</button>
+                <button style="background: var(--danger);" onclick="saveKendala()">Tandai Rusak ⚠️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PERBAIKAN -->
+    <div class="modal" id="modal-perbaikan">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-perbaikan-title">Tindakan Perbaikan CCTV</div>
+            <div class="form-group"><label>Catatan Penanggulangan:</label><input type="text" id="modal-tindakan" placeholder="Contoh: Ganti Konektor, Restart NVR, dll"></div>
+            <div class="modal-actions"><button style="background: var(--gray);" onclick="closeModal('modal-perbaikan')">Batal</button><button style="background: var(--success);" onclick="savePerbaikan()">Selesai ✔️</button></div>
+        </div>
+    </div>
+
+    <!-- MODAL TAMBAH CCTV -->
+    <div class="modal" id="modal-tambah">
+        <div class="modal-content">
+            <div class="modal-title">Tambah / Ubah CCTV</div>
+            <div class="form-group"><label>Nama / Lokasi CCTV:</label><input type="text" id="modal-nama-cctv" placeholder="Contoh: L1 Lorong Baru"><input type="hidden" id="add-gIdx"><input type="hidden" id="add-dIdx"><input type="hidden" id="add-cIdx"></div>
+            <div class="modal-actions"><button style="background: var(--gray);" onclick="closeModal('modal-tambah')">Batal</button><button style="background: var(--primary);" onclick="saveNewCCTV()">Simpan 💾</button></div>
+        </div>
+    </div>
+
+    <script>
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxhqBHuUDae9LWjzmdasEpjd5N0v0hRHFs44LfY79WTGYbI-EJXrb9Llafw77Z7epP0mA/exec";
+
+        function generateId() { return Math.random().toString(36).substr(2, 9); }
+        function setDateTimeNow() {
+            const now = new Date();
+            document.getElementById('input-tanggal').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            document.getElementById('input-jam').value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            document.getElementById('filter-bulan').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+        setDateTimeNow();
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = "none";
+            }
+        }
+
+        document.querySelectorAll('.param-cek').forEach(select => {
+            select.addEventListener('change', function() {
+                let isKendala = 
+                    document.getElementById('param-fisik').value.includes('Kendala') ||
+                    document.getElementById('param-gambar').value.includes('Kendala') ||
+                    document.getElementById('param-penyimpanan').value.includes('Error');
+                
+                document.getElementById('catatan-parameter').style.display = isKendala ? 'block' : 'none';
+            });
+        });
+
+        const namaKameraNVR1A = ["Lt_7 Dapur gizi kering", "Lt_7 farmasi", "Lt_1 genset", "Lt_5 Lorong belakang", "Lt_4 Lorong KBBL", "Lt_2 farmasi IGD", "Lt_5 lorong depan", "Lt_6 lorong belakang", "Lt_7 Lorong depan farmasi", "Lt_7 lorong perawatan", "Lt_1 MR", "Lt_5 lorong lift belakang", "Lt_7 NS", "Lt_4 lorong lift belakang", "Lt_6 gudang", "Lt_7 lorong mushola", "Lt_1 poli gigi", "Lt_2 poli gigi", "Lt_7 lorong kantor", "Lt_6 lorong gudang teknisi", "Lt_7 dapur gizi basah", "Lt_7 lorong londry", "Lt_5 ruang tunggu KTK", "Lt_7 Dapur Masak", "Lt_6 Lorong pintu HCU", "Lt_7 lorong bpjs", "Lt_1 farmasi", "Lt_7 Gz stok Farmasi"];
+        const namaKameraNVR1B = ["Lt_6 HCU Barat", "Lt_3 Lorong depan preop", "Lt_4 NS lorong B", "Lt_7 Gudang Farmasi", "Lt_4 loker", "Lt_4 NS lorong A", "Lt_2 Lorong kasir/farmasi", "Lt_7 Lorong dpn dapur", "Lt_3 Lorong flamboyan", "Lt_5 Lift belakang", "Lt_1 NS Poli Kamala", "LIFT DEPAN", "Lt_6 Ruang tunggu HCU", "Lt_2 Lorong Cafe", "Lt_2 Radiologi", "Lt_5 NS KTK", "Lt_2 Loby", "Lt_6 HCU barat", "Lt_1 Depan lift", "Lt_1 Lorong Farmasi", "Lt_2 IGD Padma", "Lt_3 Lorong dpn RR", "Lt_4 lorong NS A_B", "LIFT SELATAN", "Lt_2 pintu masuk loby", "Lt_3 Flamboyan", "Lt_4 KBBL", "Lt_1 Pintu keluar", "Lt_1 Pintu masuk", "Lt_7 NS", "Lt_2 lorong MCU", "Lt_1 Mushola"];
+        const nvrGedungBaru1 = ["L3_ NS VK", "L3_ Lorong VK", "L3_ Pintu masuk HD", "L3_ NS HD", "L3_ Lorong pintu Ram", "L3_ Preop", "L3_ NS OK", "L3_ Lorong OK", "L3_ Lorong Jenitor 1", "L3_ Lorong Jenitor 2", "L3_ Lorong Jenitor 3", "L3_ Lorong Jenitor 4"];
+        const nvrGedungBaru2 = ["L1 Lift", "L1 Parkir B", "L1 Void", "L1 Ramp turun", "L1 Ramp Naik", "L1 Parkir A", "L1 Parkir C", "Basement Belakang", "Basement IN", "Basement Out", "Area Basement"];
+        const nvrGedungBaru3 = ["L2_ Lorong Farmasi", "L2_ NS Poli Padma", "L2 Ruang tunggu A", "L2 Ruang tunggu B", "L2 Playground / ruang tunggu", "L2 Konekting", "L2 Laborat", "L2 Pendaftaran Padma", "L2 Lift", "L2 Farmasi", "L2 Kasir", "L3 NS ICU", "L3 Lorong ICU A", "L3 Lorong ICU B", "L3 Ruang tunggu", "L3 Lift", "L3 Tangga darurat", "L3 NS Perina / NICU", "L3 Lorong Perina", "L3 Konekting", "L2 IGD Kamala"];
+        const nvrGedungBaru4 = ["L4 Konekting out", "L4 NS Padma", "L4 Lorong 1", "L4 Lorong 2", "L4 Lorong 3", "L4 Lorong 4", "L4 Farmasi", "L4 Konekting IN", "Roof top 1", "Roof top 2"];
+
+        function createCamsArray(stringArray, isAnalog) {
+            let arr = stringArray.map(name => ({ id: generateId(), nama: name, status: 'aman', isKosong: false, waktuKendala: null, jenisKendala: '', ketTambahan: '' }));
+            if (isAnalog) { while(arr.length < 32) arr.push({ id: generateId(), isKosong: true }); }
+            return arr;
+        }
+
+        let StrukturCCTV = [
+            { 
+                gedung: "🏢 GEDUNG LAMA", 
+                list: [ 
+                    { nvr: "NVR 1A - Gedung Lama", type: "analog", cams: createCamsArray(namaKameraNVR1A, true) }, 
+                    { nvr: "DVR 1B - Gedung Lama", type: "analog", cams: createCamsArray(namaKameraNVR1B, true) },
+                    { nvr: "NVR 1", type: "lan", lokasiFisik: "Kondisi Fisik di Gedung Baru", cams: createCamsArray(nvrGedungBaru1, false) }
+                ] 
+            },
+            { 
+                gedung: "🏢 GEDUNG BARU", 
+                list: [ 
+                    { nvr: "NVR 2", type: "lan", cams: createCamsArray(nvrGedungBaru2, false) }, 
+                    { nvr: "NVR 3", type: "lan", cams: createCamsArray(nvrGedungBaru3, false) }, 
+                    { nvr: "NVR 4", type: "lan", cams: createCamsArray(nvrGedungBaru4, false) } 
+                ] 
+            }
+        ];
+
+        let savedHistory = []; 
+        let currentEditType = ''; 
+        let currentEditId = null; 
+        let currentEditNVR = null;
+
+        function findCamById(id) {
+            for(let gIdx=0; gIdx<StrukturCCTV.length; gIdx++) {
+                for(let dIdx=0; dIdx<StrukturCCTV[gIdx].list.length; dIdx++) {
+                    for(let cIdx=0; cIdx<StrukturCCTV[gIdx].list[dIdx].cams.length; cIdx++) {
+                        let c = StrukturCCTV[gIdx].list[dIdx].cams[cIdx];
+                        if(c.id === id && !c.isKosong) {
+                            return { cam: c, nvrNama: StrukturCCTV[gIdx].list[dIdx].nvr, gIdx, dIdx, cIdx, nvrType: StrukturCCTV[gIdx].list[dIdx].type };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function renderAllComponents() {
+            renderGridCCTV(); 
+            renderAlertBox(); 
+            renderRekapDetailCCTV();
+            if(document.getElementById('tab-riwayat').style.display === 'block') {
+                renderHistoryTable();
+            }
+        }
+
+        function fetchHistoryFromServer() {
+            document.getElementById('status-koneksi').innerText = "🔄 Sinkronisasi...";
+            
+            const paramBulan = document.getElementById('filter-bulan').value;
+            const targetUrl = paramBulan ? `${GAS_URL}?bulan=${paramBulan}` : GAS_URL;
+
+            fetch(targetUrl)
+            .then(res => res.json())
+            .then(data => {
+                savedHistory = data.riwayat || [];
+                
+                if (data.cctv_master && Array.isArray(data.cctv_master) && data.cctv_master.length > 0) {
+                    StrukturCCTV = data.cctv_master;
+                } else {
+                    syncMasterCCTVToServer();
+                }
+                
+                document.getElementById('status-koneksi').innerText = "✔️ Terhubung";
+                renderAllComponents();
+            })
+            .catch(err => {
+                document.getElementById('status-koneksi').innerText = "❌ Mode Offline / Gagal Terhubung";
+                renderAllComponents();
+            });
+        }
+
+        document.getElementById('filter-bulan').onchange = function() {
+             fetchHistoryFromServer();
+        };
+
+        function syncMasterCCTVToServer() {
+            fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: "update_master_cctv", data: StrukturCCTV })
+            }).catch(e => console.log(e));
+        }
+
+        function submitLaporanShift(isAuto = false) {
+            const tanggal = document.getElementById('input-tanggal').value;
+            const jam = document.getElementById('input-jam').value;
+            const shift = document.getElementById('input-shift').value;
+            const petugas = document.getElementById('input-petugas').value;
+
+            if(!petugas.trim()) { 
+                if(!isAuto) { alert("Mohon isi Nama Petugas!"); document.getElementById('input-petugas').focus(); }
+                return; 
+            }
+
+            let btnSubmit = document.querySelector('.btn-submit-main');
+            let textAsli = btnSubmit.innerHTML;
+            
+            if(!isAuto) {
+                btnSubmit.innerHTML = "⏳ Menyimpan Laporan...";
+                btnSubmit.disabled = true;
+            }
+
+            let rekapKendalaArr = [];
+            StrukturCCTV.forEach(g => { 
+                g.list.forEach(d => { 
+                    if(d.status === 'kendala') {
+                        rekapKendalaArr.push(`[NVR] ${d.nvr}: ${d.jenisKendala} ${d.ketTambahan ? '('+d.ketTambahan+')' : ''}`);
+                    }
+                    d.cams.forEach(cam => {
+                        if(cam.status === 'kendala') { 
+                            rekapKendalaArr.push(`[${d.nvr}] ${cam.nama}: ${cam.jenisKendala} ${cam.ketTambahan ? '('+cam.ketTambahan+')' : ''}`); 
+                        }
+                    }); 
+                }); 
+            });
+
+            let valFisik = document.getElementById('param-fisik').value;
+            let valGambar = document.getElementById('param-gambar').value;
+            let valSimpan = document.getElementById('param-penyimpanan').value;
+            let valCatatan = document.getElementById('input-catatan-param').value;
+
+            let teksParameterUtama = `[PARAMETER UTAMA]\n• Fisik: ${valFisik}\n• Gambar: ${valGambar}\n• Rekaman: ${valSimpan}`;
+            if(valCatatan && document.getElementById('catatan-parameter').style.display === 'block') {
+                teksParameterUtama += `\n• Catatan: ${valCatatan}`;
+            }
+
+            let isParamBermasalah = valFisik.includes('Kendala') || valGambar.includes('Kendala') || valSimpan.includes('Error');
+            let statusJudul = (rekapKendalaArr.length > 0 || isParamBermasalah) ? "Ada Kendala" : "Aman Semua";
+
+            let rincianKendalaFormat = rekapKendalaArr.length > 0 ? rekapKendalaArr.join("\n") : "-";
+            let rincianGabungan = `${teksParameterUtama}\n\n[DETAIL TITIK UNIT]\n${rincianKendalaFormat}`;
+
+            fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ 
+                    action: "simpan_laporan", 
+                    tanggal: tanggal, 
+                    jam: jam, 
+                    shift: shift, 
+                    petugas: petugas, 
+                    rekapKendala: rincianGabungan,
+                    statusOverride: statusJudul
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.status === "success") {
+                    if(!isAuto) alert(`✅ Laporan Shift ${shift} berhasil disimpan ke Sheet!`);
+                    
+                    document.getElementById('param-fisik').value = "Baik / Normal";
+                    document.getElementById('param-gambar').value = "Baik & Jelas";
+                    document.getElementById('param-penyimpanan').value = "Merekam Normal";
+                    document.getElementById('input-catatan-param').value = "";
+                    document.getElementById('catatan-parameter').style.display = "none";
+
+                    fetchHistoryFromServer(); 
+                    if(!isAuto) switchTab('riwayat');
+                } else { 
+                    if(!isAuto) alert("Gagal: " + data.message); 
+                }
+            })
+            .catch(error => { 
+                if(!isAuto) alert("Kesalahan jaringan atau Mode Offline. Data belum terkirim ke Server."); 
+            })
+            .finally(() => { 
+                if(!isAuto) {
+                    btnSubmit.innerHTML = textAsli; 
+                    btnSubmit.disabled = false; 
+                }
+            });
+        }
+
+        function openCCTVAction(id) { 
+            currentEditType = 'cctv';
+            let data = findCamById(id); 
+            currentEditId = id; 
+            
+            if (data.cam.status === 'aman') { 
+                document.getElementById('modal-kendala-title').innerText = `Pengaturan CCTV: ${data.cam.nama}`; 
+                document.getElementById('modal-cctv-nama-edit').value = data.cam.nama;
+                document.getElementById('modal-ket-kendala').value = ''; 
+                document.getElementById('modal-jenis-kendala').innerHTML = `
+                    <option value="Kamera Rusak / Mati">Kamera Rusak / Mati</option>
+                    <option value="Gambar Blur / Berbayang">Gambar Blur / Berbayang</option>
+                    <option value="Kabel Putus / Kendor">Kabel Putus / Kendor</option>
+                    <option value="Lainnya">Lainnya</option>
+                `;
+                document.getElementById('modal-kendala').style.display = 'flex'; 
+            } else { 
+                document.getElementById('modal-tindakan').value = '';
+                document.getElementById('modal-perbaikan-title').innerText = `Tindakan Perbaikan: ${data.cam.nama}`; 
+                document.getElementById('modal-perbaikan').style.display = 'flex'; 
+            } 
+        }
+
+        function editNamaCCTV() {
+            let newName = document.getElementById('modal-cctv-nama-edit').value.trim();
+            if(!newName) return alert("Nama CCTV tidak boleh kosong!");
+            let data = findCamById(currentEditId);
+            if(data) {
+                data.cam.nama = newName;
+                renderAllComponents();
+                syncMasterCCTVToServer();
+                alert("✅ Nama CCTV berhasil diubah!");
+                closeModal('modal-kendala');
+            }
+        }
+
+        function hapusCCTV() {
+            let data = findCamById(currentEditId);
+            if(!data) return;
+            
+            if(confirm(`Apakah Anda yakin ingin menghapus/mengosongkan kamera "${data.cam.nama}"?`)) {
+                let nvrObj = StrukturCCTV[data.gIdx].list[data.dIdx];
+                if(nvrObj.type === 'analog') {
+                    nvrObj.cams[data.cIdx] = { id: generateId(), isKosong: true };
+                } else {
+                    nvrObj.cams.splice(data.cIdx, 1);
+                }
+                
+                closeModal('modal-kendala');
+                renderAllComponents();
+                syncMasterCCTVToServer();
+                alert("🗑️ Kamera CCTV berhasil dihapus!");
+            }
+        }
+
+        function openNVRAction(gIdx, dIdx) {
+            currentEditType = 'nvr';
+            currentEditNVR = { gIdx, dIdx };
+            let nvrData = StrukturCCTV[gIdx].list[dIdx];
+            
+            if (!nvrData.status) nvrData.status = 'aman';
+
+            if (nvrData.status === 'aman') {
+                document.getElementById('modal-kendala-title').innerText = `Lapor Kendala NVR: ${nvrData.nvr}`; 
+                document.getElementById('modal-cctv-nama-edit').value = nvrData.nvr;
+                document.getElementById('modal-ket-kendala').value = ''; 
+                document.getElementById('modal-jenis-kendala').innerHTML = `
+                    <option value="NVR Mati / Offline">NVR Mati / Offline</option>
+                    <option value="HDD Error / Tidak Merekam">HDD Error / Tidak Merekam</option>
+                    <option value="Port Switch / Jaringan Error">Port Switch / Jaringan Error</option>
+                    <option value="Lainnya">Lainnya</option>
+                `;
+                document.getElementById('modal-kendala').style.display = 'flex'; 
+            } else {
+                document.getElementById('modal-tindakan').value = '';
+                document.getElementById('modal-perbaikan-title').innerText = `Tindakan Perbaikan NVR: ${nvrData.nvr}`;
+                document.getElementById('modal-perbaikan').style.display = 'flex'; 
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function saveKendala() {
+            let jenisKendala = document.getElementById('modal-jenis-kendala').value;
+            let ketTambahan = document.getElementById('modal-ket-kendala').value;
+            let waktu = new Date().toISOString();
+
+            if (currentEditType === 'cctv') {
+                let data = findCamById(currentEditId);
+                if (data) { 
+                    data.cam.status = 'kendala'; 
+                    data.cam.jenisKendala = jenisKendala; 
+                    data.cam.ketTambahan = ketTambahan; 
+                    data.cam.waktuKendala = waktu; 
+                }
+            } else if (currentEditType === 'nvr') {
+                let nvrData = StrukturCCTV[currentEditNVR.gIdx].list[currentEditNVR.dIdx];
+                nvrData.status = 'kendala';
+                nvrData.jenisKendala = jenisKendala;
+                nvrData.ketTambahan = ketTambahan;
+                nvrData.waktuKendala = waktu;
+            }
+
+            closeModal('modal-kendala'); 
+            renderAllComponents(); 
+            syncMasterCCTVToServer();
+        }
+
+        function savePerbaikan() {
+            let catatanPenanggulangan = document.getElementById('modal-tindakan').value.trim();
+            if(!catatanPenanggulangan) {
+                alert("Mohon isi catatan penanggulangan/tindakan perbaikan!");
+                return;
+            }
+
+            let petugas = document.getElementById('input-petugas').value.trim();
+            if(!petugas) {
+                alert("Mohon isi 'Nama Petugas' di Form Pengecekan sebelum menandai perbaikan!");
+                closeModal('modal-perbaikan');
+                document.getElementById('input-petugas').focus();
+                return;
+            }
+
+            let detailRiwayatPerbaikan = "";
+
+            if (currentEditType === 'cctv') {
+                let data = findCamById(currentEditId); 
+                detailRiwayatPerbaikan = `[${data.nvrNama}] ${data.cam.nama}: ${data.cam.jenisKendala || 'Kendala'} ${data.cam.ketTambahan ? '('+data.cam.ketTambahan+')' : ''}. \n<br><b>PENANGGULANGAN:</b> ${catatanPenanggulangan}`;
+                data.cam.status = 'aman'; 
+                data.cam.jenisKendala = ''; 
+                data.cam.ketTambahan = ''; 
+                data.cam.waktuKendala = null;
+            } else if (currentEditType === 'nvr') {
+                let nvrData = StrukturCCTV[currentEditNVR.gIdx].list[currentEditNVR.dIdx];
+                detailRiwayatPerbaikan = `[NVR] ${nvrData.nvr}: ${nvrData.jenisKendala || 'Kendala'} ${nvrData.ketTambahan ? '('+nvrData.ketTambahan+')' : ''}. \n<br><b>PENANGGULANGAN:</b> ${catatanPenanggulangan}`;
+                nvrData.status = 'aman';
+                nvrData.jenisKendala = '';
+                nvrData.ketTambahan = '';
+                nvrData.waktuKendala = null;
+            }
+            
+            closeModal('modal-perbaikan'); 
+            renderAllComponents();
+            syncMasterCCTVToServer();
+
+            const tanggal = document.getElementById('input-tanggal').value;
+            const jam = document.getElementById('input-jam').value;
+            const shift = document.getElementById('input-shift').value;
+
+            document.querySelector('.btn-submit-main').innerHTML = "⏳ Mencatat Perbaikan...";
+            
+            fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ 
+                    action: "simpan_laporan", 
+                    tanggal: tanggal, 
+                    jam: jam, 
+                    shift: shift, 
+                    petugas: petugas, 
+                    rekapKendala: detailRiwayatPerbaikan,
+                    statusOverride: "Ada beberapa kendala tapi sudah di perbaiki" 
+                })
+            })
+            .then(res => res.json())
+            .then(() => {
+                alert("✅ Tindakan perbaikan berhasil dicatat ke Riwayat!");
+                fetchHistoryFromServer();
+            })
+            .catch(error => {
+                alert("Perbaikan disimpan lokal (Mode Offline).");
+            })
+            .finally(() => {
+                document.querySelector('.btn-submit-main').innerHTML = "✔️ Simpan & Rekap Laporan Shift";
+            });
+        }
+
+        function renderGridCCTV() {
+            const container = document.getElementById('cctv-grid-container'); 
+            let html = '';
+            StrukturCCTV.forEach((g, gIdx) => {
+                html += `<div class="building-header">${g.gedung}</div>`;
+                g.list.forEach((d, dIdx) => {
+                    let nvrStatusClass = (d.status === 'kendala') ? 'rusak' : 'aman';
+                    let nvrStatusText = (d.status === 'kendala') ? '⚠️ NVR Bermasalah' : '✅ NVR Normal';
+                    let nvrType = d.type || g.type || 'lan';
+                    
+                    let badgeFisik = d.lokasiFisik ? `<span style="background: #fff3cd; color: #856404; font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; border: 1px solid #ffeeba; margin-left: 8px; font-weight: bold; display: inline-block;">⚠️ ${d.lokasiFisik}</span>` : '';
+
+                    html += `<div class="nvr-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg); padding-bottom: 8px; margin-bottom: 15px; flex-wrap: wrap; gap: 8px;">
+                            <h3 style="margin:0; font-size: 1rem; color: var(--dark);">🖥️ ${d.nvr} <span style="font-size:0.8rem; color:var(--gray); margin-left: 5px;">${nvrType.toUpperCase()}</span> ${badgeFisik}</h3>
+                            <button class="btn-nvr-status ${nvrStatusClass}" onclick="openNVRAction(${gIdx}, ${dIdx})">${nvrStatusText}</button>
+                        </div>
+                        <div class="grid-cctv">`;
+                    d.cams.forEach((cam, cIdx) => {
+                        let chNum = String(cIdx + 1).padStart(2, '0');
+                        if (cam.isKosong) {
+                            html += `<div class="cctv-wrapper" draggable="true" ondragstart="handleDragStart(event, ${gIdx}, ${dIdx}, ${cIdx})" ondragover="handleDragOver(event)" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, ${gIdx}, ${dIdx}, ${cIdx})" ondragend="handleDragEnd(event)"><button class="cctv-btn kosong" onclick="openAddCCTVModal(${gIdx}, ${dIdx}, ${cIdx})"><span class="channel-label">CH ${chNum}</span>Kosong</button></div>`;
+                        } else {
+                            let btnClass = cam.status === 'aman' ? '' : 'rusak'; 
+                            let icon = cam.status === 'aman' ? '✔' : '⚠️';
+                            html += `<div class="cctv-wrapper" draggable="true" ondragstart="handleDragStart(event, ${gIdx}, ${dIdx}, ${cIdx})" ondragover="handleDragOver(event)" ondragenter="handleDragEnter(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, ${gIdx}, ${dIdx}, ${cIdx})" ondragend="handleDragEnd(event)"><button class="cctv-btn ${btnClass}" onclick="openCCTVAction('${cam.id}')"><span class="channel-label">CH ${chNum}</span><span class="icon">${icon}</span>${cam.nama}</button></div>`;
+                        }
+                    });
+                    if (nvrType === "lan") { 
+                        html += `<div class="cctv-wrapper"><button class="cctv-btn btn-tambah" onclick="openAddCCTVModal(${gIdx}, ${dIdx})"><span class="icon">➕</span>Tambah IP Cam</button></div>`; 
+                    }
+                    html += `</div></div>`;
+                });
+            }); 
+            container.innerHTML = html;
+        }
+
+        function renderAlertBox() {
+            let adaMasalah = false; let listHtml = ""; document.getElementById('alert-box').style.display = 'none';
+            StrukturCCTV.forEach(g => { 
+                g.list.forEach(d => { 
+                    if (d.status === 'kendala') {
+                        adaMasalah = true;
+                        let waktuStr = d.waktuKendala ? new Date(d.waktuKendala).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : 'Tidak tercatat';
+                        listHtml += `<div class="issue-card"><div class="issue-loc">🖥️ NVR: ${d.nvr} <span style="font-size:0.8rem;color:#777;">(${g.gedung})</span></div><div class="issue-time">🕒 Dilaporkan: ${waktuStr}</div><div class="issue-desc">❌ ${d.jenisKendala} - ${d.ketTambahan}</div><div class="issue-note">ℹ️ Catatan: Klik tombol '⚠️ NVR Bermasalah' pada area NVR di bawah untuk mencatat perbaikan.</div></div>`;
+                    }
+                    d.cams.forEach(c => {
+                        if (c.status === 'kendala') { 
+                            adaMasalah = true;
+                            let waktuStr = c.waktuKendala ? new Date(c.waktuKendala).toLocaleString('id-ID', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : 'Tidak tercatat';
+                            listHtml += `<div class="issue-card"><div class="issue-loc">📍 ${c.nama} <span style="font-size:0.8rem;color:#777;">(${d.nvr})</span></div><div class="issue-time">🕒 Dilaporkan: ${waktuStr}</div><div class="issue-desc">❌ ${c.jenisKendala} - ${c.ketTambahan}</div><div class="issue-note">ℹ️ Catatan: Untuk perbaikan, silakan klik tombol CCTV yang bermasalah pada grid di bawah.</div></div>`;
+                        }
+                    }); 
+                }); 
+            });
+            if (adaMasalah) { document.getElementById('issue-list-container').innerHTML = listHtml; document.getElementById('alert-box').style.display = 'block'; }
+        }
+
+        function openAddCCTVModal(gIdx, dIdx, cIdx) {
+            document.getElementById('add-gIdx').value = gIdx; document.getElementById('add-dIdx').value = dIdx; document.getElementById('add-cIdx').value = cIdx !== undefined ? cIdx : -1;
+            document.getElementById('modal-nama-cctv').value = ''; document.getElementById('modal-tambah').style.display = 'flex';
+        }
+
+        function saveNewCCTV() {
+            let gIdx = parseInt(document.getElementById('add-gIdx').value); let dIdx = parseInt(document.getElementById('add-dIdx').value); let cIdx = parseInt(document.getElementById('add-cIdx').value);
+            let nama = document.getElementById('modal-nama-cctv').value.trim();
+            if(!nama) return alert("Nama CCTV kosong!");
+            
+            if (cIdx === -1) { StrukturCCTV[gIdx].list[dIdx].cams.push({ id: generateId(), nama: nama, status: 'aman', isKosong: false, waktuKendala: null, jenisKendala: '', ketTambahan: '' }); } 
+            else { StrukturCCTV[gIdx].list[dIdx].cams[cIdx] = { id: generateId(), nama: nama, status: 'aman', isKosong: false, waktuKendala: null, jenisKendala: '', ketTambahan: '' }; }
+            
+            closeModal('modal-tambah'); renderAllComponents(); syncMasterCCTVToServer();
+        }
+
+        let draggedInfo = null;
+        function handleDragStart(e, gIdx, dIdx, cIdx) { 
+            draggedInfo = { gIdx, dIdx, cIdx }; 
+            if(e.dataTransfer) { 
+                e.dataTransfer.effectAllowed = "move"; 
+                e.dataTransfer.setData('text/plain', cIdx); 
+            } 
+        }
+        function handleDragEnter(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+        function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+        function handleDragOver(e) { e.preventDefault(); }
+        function handleDragEnd(e) { e.target.classList.remove('dragging'); }
+        function handleDrop(e, targetGIdx, targetDIdx, targetCIdx) {
+            e.preventDefault(); e.currentTarget.classList.remove('drag-over'); if(!draggedInfo) return;
+            if (draggedInfo.gIdx === targetGIdx && draggedInfo.dIdx === targetDIdx) {
+                let cams = StrukturCCTV[targetGIdx].list[targetDIdx].cams; let temp = cams[draggedInfo.cIdx]; cams[draggedInfo.cIdx] = cams[targetCIdx]; cams[targetCIdx] = temp;
+                renderAllComponents(); syncMasterCCTVToServer(); 
+            } draggedInfo = null;
+        }
+
+        // FUNGSI RENDER TABEL RIWAYAT DENGAN AGREGASI PENANGGULANGAN & UPDATE STATUS
+        function renderHistoryTable() {
+            const tbody = document.getElementById('history-tbody');
+            const paramBulan = document.getElementById('filter-bulan').value;
+
+            if (!paramBulan) {
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-row text-center">Silakan pilih bulan...</td></tr>`; 
+                return;
+            }
+
+            let [tahun, bulan] = paramBulan.split('-');
+            let jumlahHari = new Date(tahun, bulan, 0).getDate(); 
+            let daftarShift = ['Pagi', 'Malam']; 
+
+            let html = "";
+
+            for (let i = 1; i <= jumlahHari; i++) {
+                let tglFormatSystem = `${tahun}-${bulan}-${String(i).padStart(2, '0')}`;
+                let tglFormatTampil = `${String(i).padStart(2, '0')}/${bulan}/${tahun}`;
+                
+                let barisClass = i % 2 === 0 ? "row-even" : "row-odd";
+
+                daftarShift.forEach((shiftName, index) => {
+                    let daftarLaporan = savedHistory.filter(r => r.tanggal === tglFormatSystem && r.shift === shiftName);
+                    
+                    let dateCellHTML = "";
+                    if (index === 0) {
+                        dateCellHTML = `<td rowspan="2" style="vertical-align: middle; font-weight: bold; border-bottom: 2px solid #bbb;">${tglFormatTampil}</td>`;
+                    }
+
+                    let rowStyle = index === 1 ? 'border-bottom: 2px solid #bbb;' : '';
+
+                    if (daftarLaporan.length > 0) {
+                        let namaPetugas = daftarLaporan.map(l => l.petugas).filter((v, idx, a) => v && a.indexOf(v) === idx).join(', ');
+
+                        let paramText = "";
+                        let rincianList = [];
+                        let isDiperbaiki = false;
+                        let laporanTerakhir = daftarLaporan[daftarLaporan.length - 1];
+                        let rawStatus = laporanTerakhir.status || "";
+
+                        daftarLaporan.forEach(l => {
+                            let rawKendala = l.kendala || "-";
+                            let statusItem = l.status || "";
+                            
+                            if (statusItem.toLowerCase().includes("diperbaiki") || statusItem.toLowerCase().includes("sudah di perbaiki") || rawKendala.includes("PENANGGULANGAN")) {
+                                isDiperbaiki = true;
+                            }
+
+                            if (rawKendala.includes("[PARAMETER UTAMA]")) {
+                                let parts = rawKendala.split(/\[DETAIL TITIK.*\]/);
+                                if (!paramText) {
+                                    paramText = parts[0].replace("[PARAMETER UTAMA]", "").trim();
+                                }
+                                let detail = parts[1] ? parts[1].trim() : "";
+                                if (detail && detail !== "-" && !detail.includes("Nihil")) {
+                                    detail.split('\n').forEach(d => {
+                                        let itemClean = d.trim();
+                                        if (itemClean && itemClean !== "-") rincianList.push(itemClean);
+                                    });
+                                }
+                            } else if (rawKendala !== "-" && rawKendala !== "") {
+                                rawKendala.split('\n').forEach(d => {
+                                    let itemClean = d.trim();
+                                    if (itemClean && itemClean !== "-") rincianList.push(itemClean);
+                                });
+                            }
+                        });
+
+                        if (rincianList.some(item => item.includes("PENANGGULANGAN"))) {
+                            isDiperbaiki = true;
+                        }
+
+                        // Filter rincian: Jika kendala sudah memiliki versi PENANGGULANGAN, hilangkan versi rincian kendala mentahnya
+                        let rincianFiltered = rincianList.filter((item, idx) => {
+                            if (item.includes("PENANGGULANGAN")) return true;
+                            let cameraName = item.split(':')[0].replace(/\[.*?\]/g, '').trim();
+                            if (!cameraName) return true;
+                            let hasPenanggulanganVersion = rincianList.some(other => 
+                                other.includes("PENANGGULANGAN") && other.includes(cameraName)
+                            );
+                            return !hasPenanggulanganVersion;
+                        });
+
+                        rincianFiltered = rincianFiltered.filter((v, idx, a) => a.indexOf(v) === idx);
+
+                        let rincianText = rincianFiltered.join("<br>");
+                        if (!rincianText || rincianText.includes("Nihil") || rincianText.includes("normal") || rincianText === "-") {
+                            rincianText = "-";
+                        }
+
+                        // Cek apakah masih ada kendala yang belum ditanggulangi
+                        let hasUnresolvedKendala = rincianFiltered.some(item => 
+                            item !== "-" && !item.includes("PENANGGULANGAN") && !item.includes("Nihil") && !item.includes("normal")
+                        );
+
+                        if (paramText.includes("Ada Kendala") || paramText.includes("Error")) {
+                            if (!isDiperbaiki) hasUnresolvedKendala = true;
+                        }
+
+                        let statusLabel = "Aman Semua";
+                        if (isDiperbaiki) {
+                            statusLabel = "Ada beberapa kendala tapi sudah di perbaiki";
+                        } else if (hasUnresolvedKendala) {
+                            statusLabel = "Ada Kendala";
+                        } else if (rawStatus.toLowerCase().includes("aman")) {
+                            statusLabel = "Aman Semua";
+                        }
+
+                        let statusClass = "status-aman";
+                        if (statusLabel === "Ada Kendala") {
+                            statusClass = "status-kendala";
+                        } else if (statusLabel === "Ada beberapa kendala tapi sudah di perbaiki") {
+                            statusClass = "status-diperbaiki";
+                        }
+
+                        let statusCellHTML = `<div class="${statusClass}">${statusLabel}</div>`;
+                        if (paramText) {
+                            statusCellHTML += `<div style="font-size:0.75rem; text-align:left; margin-top:6px; line-height:1.35; color:#333; background:#f0f4f8; padding:6px; border-radius:5px; border:1px solid #d0d7de;">${paramText.replace(/\n/g, '<br>')}</div>`;
+                        }
+
+                        html += `<tr class="${barisClass}" style="${rowStyle}">
+                            ${dateCellHTML}
+                            <td style="font-weight: 500; color: ${shiftName === 'Pagi' ? '#0d6efd' : '#0f5132'};">${shiftName}</td>
+                            <td>${namaPetugas || "-"}</td>
+                            <td>${statusCellHTML}</td>
+                            <td class="text-left">${rincianText}</td>
+                        </tr>`;
+                    } else {
+                        html += `<tr class="${barisClass} empty-row" style="${rowStyle}">
+                            ${dateCellHTML}
+                            <td style="font-weight: 500; color: ${shiftName === 'Pagi' ? '#0d6efd' : '#0f5132'};">${shiftName}</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>`;
+                    }
+                });
+            }
+
+            tbody.innerHTML = html;
+        }
+
+        function renderRekapDetailCCTV() {
+            const tbody = document.getElementById('rekap-detail-tbody'); 
+            let html = "";
+            let totalGdLama = 0;
+            let totalGdBaru = 0;
+            let grandTotal = 0;
+
+            StrukturCCTV.forEach((g) => {
+                let totalGedungThis = 0;
+
+                g.list.forEach(d => {
+                    d.cams.forEach(c => {
+                        if(!c.isKosong) totalGedungThis++;
+                    });
+                });
+
+                if (g.gedung.includes("LAMA")) {
+                    totalGdLama += totalGedungThis;
+                } else {
+                    totalGdBaru += totalGedungThis;
+                }
+
+                html += `<tr>
+                    <td colspan="3" class="text-left" style="background:#eee; font-weight:bold; color:var(--primary); padding:12px;">
+                        ${g.gedung} 
+                        <span style="float: right; color: var(--dark); font-weight: bold; font-size: 0.9rem; background: #fff; padding: 2px 10px; border-radius: 12px; border: 1px solid #ccc;">
+                            Subtotal: ${totalGedungThis} Unit
+                        </span>
+                    </td>
+                </tr>`;
+
+                g.list.forEach((d, i) => {
+                    let totalAman = 0; 
+                    let listKameraHTML = "<ol class='rekap-detail-list'>";
+                    d.cams.forEach(c => { 
+                        if(!c.isKosong) { 
+                            totalAman++; 
+                            let mark = c.status === 'kendala' ? " <span style='color:var(--danger); font-weight:bold;'>(❌ Rusak)</span>" : ""; 
+                            listKameraHTML += `<li>${c.nama} ${mark}</li>`; 
+                        } 
+                    });
+                    listKameraHTML += "</ol>";
+
+                    let noteText = d.lokasiFisik ? `<br><span style="background: #fff3cd; color: #856404; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; border: 1px solid #ffeeba; margin-top: 5px; display: inline-block;">⚠️ ${d.lokasiFisik}</span>` : '';
+                    let barisClass = i % 2 === 0 ? "row-even" : "row-odd";
+
+                    html += `<tr class="${barisClass}">
+                        <td style="font-weight:bold; text-align:left; vertical-align:top; padding:15px;">
+                            ${d.nvr} ${noteText}
+                        </td>
+                        <td class="text-left" style="padding:15px;">${listKameraHTML}</td>
+                        <td style="font-size:1.1rem; font-weight:bold; color:var(--primary);">${totalAman} Unit</td>
+                    </tr>`;
+                });
+            });
+
+            grandTotal = totalGdLama + totalGdBaru;
+
+            html += `<tr style="background-color: var(--dark); color: white; font-weight: bold;">
+                <td colspan="2" style="text-align: right; padding: 12px; font-size: 1rem;">TOTAL KESELURUHAN CCTV:</td>
+                <td style="font-size: 1.2rem; padding: 12px; color: var(--warning);">${grandTotal} Unit</td>
+            </tr>`;
+
+            tbody.innerHTML = html;
+
+            document.getElementById('total-gd-lama').innerText = `${totalGdLama} Unit`;
+            document.getElementById('total-gd-baru').innerText = `${totalGdBaru} Unit`;
+            document.getElementById('grand-total-cctv').innerText = `${grandTotal} Unit`;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-tab-' + tabId).classList.add('active');
+            document.getElementById('tab-pengecekan').style.display = 'none';
+            document.getElementById('tab-rekap').style.display = 'none';
+            document.getElementById('tab-riwayat').style.display = 'none';
+            document.getElementById('tab-' + tabId).style.display = 'block';
+
+            if(tabId === 'riwayat') {
+                let pBulan = document.getElementById('filter-bulan').value;
+                if(pBulan) {
+                    let dateParts = pBulan.split("-");
+                    let namaBulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+                    document.getElementById('periode-cetak').innerText = `Periode: ${namaBulan[parseInt(dateParts[1])-1]} ${dateParts[0]}`;
+                }
+                renderHistoryTable();
+            } else if (tabId === 'rekap') { 
+                renderRekapDetailCCTV(); 
+            }
+        }
+
+        window.onload = function() {
+            setDateTimeNow();
+            fetchHistoryFromServer(); 
+        };
+    </script>
+</body>
+</html>
